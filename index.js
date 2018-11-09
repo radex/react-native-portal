@@ -2,131 +2,127 @@
   @flow weak
  */
 
-import React from 'react'; // peer-dependency
-import mitt from 'mitt'; // DEPENDENCY #1
-import PropTypes from 'prop-types'; // DEPENDENCY #2, sorta
+import React from 'react' // peer-dependency
+import mitt from 'mitt' // DEPENDENCY #1
 
-if (!PropTypes) console.warn('<react-native-portal> no PropTypes available');
-
-const oContextTypes = {
-  portalSub: PropTypes.func,
-  portalUnsub: PropTypes.func,
-  portalSet: PropTypes.func,
-  portalGet: PropTypes.func,
-};
+export const PortalContext = React.createContext()
 
 export class PortalProvider extends React.Component {
-  _emitter: *;
-  static childContextTypes = oContextTypes;
+  _emitter = new mitt()
 
-  portals = new Map();
+  portals = new Map()
 
-  getChildContext() {
-    return {
-      portalSub: this.portalSub,
-      portalUnsub: this.portalUnsub,
-      portalSet: this.portalSet,
-      portalGet: this.portalGet,
-    };
-  }
-
-  componentWillMount() {
-    this._emitter = new mitt();
-  }
-
-  componentWillUnmount() {
-    this._emitter = null;
-  }
+  // componentWillUnmount() {
+  //   this._emitter = null
+  // }
 
   // 변경시 통지 요청 등록
   portalSub = (name, callback) => {
-    const emitter = this._emitter;
+    const emitter = this._emitter
     if (emitter) {
-      emitter.on(name, callback);
+      emitter.on(name, callback)
     }
-  };
+  }
 
   // 변경시 통지 요청 해제
   portalUnsub = (name, callback) => {
-    const emitter = this._emitter;
+    const emitter = this._emitter
     if (emitter) {
-      emitter.off(name, callback);
+      emitter.off(name, callback)
     }
-  };
+  }
 
   // 변경
   portalSet = (name, value) => {
-    this.portals.set(name, value);
+    this.portals.set(name, value)
     if (this._emitter) {
-      this._emitter.emit(name);
+      this._emitter.emit(name)
     }
-  };
+  }
 
-  portalGet = name => this.portals.get(name) || null;
+  portalGet = name => this.portals.get(name) || null
 
   // 변경
   render() {
-    return this.props.children;
+    return (
+      <PortalContext.Provider value={{
+          portalSub: this.portalSub,
+          portalUnsub: this.portalUnsub,
+          portalSet: this.portalSet,
+          portalGet: this.portalGet,
+        }}>
+        {this.props.children}
+      </PortalContext.Provider>
+    )
   }
 }
 
 export class BlackPortal extends React.PureComponent {
-  static contextTypes = oContextTypes;
+  static contextType = PortalContext
+
   props: {
     name: string,
     children?: *,
-  };
-  componentDidMount() {
-    const { name, children } = this.props;
-    const { portalSet } = this.context;
-    portalSet && portalSet(name, children);
   }
-  componentWillReceiveProps(newProps) {
-    const oldProps = this.props;
-    const { name, children } = newProps;
-    const { portalSet } = this.context;
+
+  componentDidMount() {
+    const { name, children } = this.props
+    const { portalSet } = this.context
+    portalSet && portalSet(name, children)
+  }
+
+  componentDidUpdate(newProps) {
+    const oldProps = this.props
+    const { name, children } = newProps
+    const { portalSet } = this.context
     if (oldProps.children != newProps.children) {
-      portalSet && portalSet(name, children);
+      portalSet && portalSet(name, children)
     }
   }
+
   componentWillUnmount() {
-    const { name } = this.props;
-    const { portalSet } = this.context;
-    portalSet && portalSet(name, null);
+    const { name } = this.props
+    const { portalSet } = this.context
+    portalSet && portalSet(name, null)
   }
+
   render() {
-    const { name } = this.props;
-    return null;
+    const { name } = this.props
+    return null
   }
 }
 
 export class WhitePortal extends React.PureComponent {
-  static contextTypes = oContextTypes;
+  static contextType = PortalContext
+
   props: {
     name: string,
     children?: *,
     childrenProps?: *,
-  };
-  componentWillMount() {
-    const { name } = this.props;
-    const { portalSub } = this.context;
-    portalSub && portalSub(name, this.forceUpdater);
   }
+
+  componentDidMount() {
+    const { name } = this.props
+    const { portalSub } = this.context
+    portalSub && portalSub(name, this.forceUpdater)
+  }
+
   componentWillUnmount() {
-    const { name } = this.props;
-    const { portalUnsub } = this.context;
-    portalUnsub && portalUnsub(name, this.forceUpdater);
+    const { name } = this.props
+    const { portalUnsub } = this.context
+    portalUnsub && portalUnsub(name, this.forceUpdater)
   }
-  forceUpdater = () => this.forceUpdate();
+
+  forceUpdater = () => this.forceUpdate()
 
   render() {
-    const { name, children, childrenProps } = this.props;
-    const { portalGet } = this.context;
-    const portalChildren = (portalGet && portalGet(name)) || children;
+    const { name, children, childrenProps } = this.props
+    const { portalGet } = this.context
+    const portalChildren = (portalGet && portalGet(name)) || children
     return (
-      (childrenProps && portalChildren
-        ? React.cloneElement(React.Children.only(portalChildren), childrenProps)
-        : portalChildren) || null
-    );
+      (childrenProps && portalChildren ?
+        React.cloneElement(React.Children.only(portalChildren), childrenProps) :
+        portalChildren) || null
+    )
   }
 }
